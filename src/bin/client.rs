@@ -27,8 +27,8 @@ fn main() {
             
             let mut fileName = String::new();
             let mut fileSizeStr = String::new();
-            buf_reader.read_line(&mut fileName).expect("Could read not file name");
-            buf_reader.read_line(&mut fileSizeStr).expect("Could read not file size");
+            buf_reader.read_line(&mut fileName).expect("Could not read file name");
+            buf_reader.read_line(&mut fileSizeStr).expect("Could not read file size");
 
             fileName = fileName.trim().to_owned();
             fileSizeStr = fileSizeStr.trim().to_owned();
@@ -42,30 +42,37 @@ fn main() {
                 Ok(mut f) => {
                     // Read the remaining lines in the buffer and ensure bytes sum to file size
                     let mut bytesReceived : i32 = 0;
+                    let mut bytesWritten : i32 = 0;
+                    let mut fileContents : [u8; 512] = [0;512];
                     
-                    let mut fileContents : Vec<u8> = Vec::new();
-                   
-                    match buf_reader.read_to_end(&mut fileContents){
-                        Ok(n) => {
-                            bytesReceived += n as i32;
 
-                            if bytesReceived == fileSize {
-                                f.write_all(&fileContents).unwrap();
-                                println!("File Downloaded!");
+                    while true {
+                        
+                        match buf_reader.read(&mut fileContents){
+                            Ok(n) => {
+                                if n > 0{
+                                    bytesReceived += n as i32;
+
+                                    f.write_all(&fileContents[..n]).expect("Could not write");
+                                    
+                                    println!("Received: {} / {}", bytesReceived, fileSize);
+                                }
+                                else{
+                                    break;
+                                }
                             }
-                            else{
-                                println!("Expected {:?} bytes, Found {:?} ", fileSize, bytesReceived);
-                                return
+                            Err(e) => {
+                                println!("Failed to read: {:?}",e);
                             }
-                            
-                            
-                        }
-                        Err(e) => {
-                            println!("Failed read: {:?}",e);
                         }
                     }
 
-
+                    if bytesReceived != fileSize {
+                        println!("File Size Mismatch: Expected {}, Received {}", fileSize, bytesReceived);
+                    }
+                    else{
+                        println!("Successfully received file: Name - {}, Size - {}",fileName, fileSize);
+                    }
 
                 }
                 Err(e) => {
